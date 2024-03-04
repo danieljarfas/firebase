@@ -1,0 +1,248 @@
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendégkönyv</title>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="row justify-content-center mt-5">
+            <div class="col-md-6">
+                <form>
+                    <div class="form-group">
+                        <label for="nev">Név</label>
+                        <input type="text" class="form-control" id="nev" placeholder="Név">
+                    </div>
+                    <div class="form-group">
+                        <label for="uzenet">Üzenet</label>
+                        <textarea class="form-control" id="uzenet" rows="5" placeholder="Üzenet"></textarea>
+                    </div>
+                    <button id="submitButton" type="submit" class="btn btn-primary">Küldés</button>
+                </form>
+            </div>
+        </div>
+        <div class="row justify-content-center mt-3">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <input type="text" class="form-control" id="szures" placeholder="Név...">
+                    <div class="input-group-append">
+                        <button id="szuresButton" class="btn btn-primary">Szűrés</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="row justify-content-center mt-5">
+            <div class="col-md-6">
+                <h2>Jelenlegi üzenetek</h2>
+                <ul class="list-group" id="messageList">
+                    <!-- ide az üzenetek kerülnek -->
+                </ul>
+            </div>
+        </div>
+
+        <div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="editModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editModalLabel">Üzenet szerkesztése</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="editName">Név:</label>
+                            <input type="text" class="form-control" id="editName">
+                        </div>
+                        <div class="form-group">
+                            <label for="editMessage">Üzenet:</label>
+                            <textarea class="form-control" id="editMessage" rows="5"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Mégse</button>
+                        <button type="button" class="btn btn-primary" id="saveEdit">Mentés</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+        <script src="https://www.gstatic.com/firebasejs/9.8.1/firebase-app-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/9.8.1/firebase-firestore-compat.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+        <script>
+
+            const firebaseConfig = {
+                apiKey: "AIzaSyBI7IpIypNregQMHw0sect6SWrZhG6lSbY",
+                authDomain: "todolist-9e7a2.firebaseapp.com",
+                projectId: "todolist-9e7a2",
+                storageBucket: "todolist-9e7a2.appspot.com",
+                messagingSenderId: "986519665374",
+                appId: "1:986519665374:web:9f7d1c8b6c2ea1bebc204f"
+            };
+
+
+            const app = firebase.initializeApp(firebaseConfig);
+            const db = firebase.firestore(app);
+
+            function adatokFeltoltese(name, message) {
+                db.collection("vendegkonyv").add({
+                    nev: name,
+                    uzenet: message
+                })
+                    .then(() => {
+                        console.log("Üzenet feltöltve!");
+                    })
+                    .catch((error) => {
+                        console.error("Hiba történt az üzenet feltöltése közben:", error);
+                    });
+            }
+
+
+            document.addEventListener("DOMContentLoaded", function () {
+                const submitButton = document.getElementById("submitButton");
+
+                submitButton.addEventListener("click", function (event) {
+                    event.preventDefault();
+
+                    const name = document.getElementById("nev").value;
+                    const message = document.getElementById("uzenet").value;
+
+                    adatokFeltoltese(name, message);
+                    updateMessageList();
+                });
+            });
+
+            function updateMessageList() {
+                const messageList = document.getElementById("messageList");
+
+
+                messageList.innerHTML = "";
+
+
+                db.collection("vendegkonyv").get().then((querySnapshot) => {
+                    querySnapshot.forEach((doc) => {
+                        const messageData = doc.data();
+                        const messageItem = `
+                    <li class="list-group-item">
+                        <div><strong>Név:</strong> ${messageData.nev}</div>
+                        <div><strong>Üzenet:</strong> ${messageData.uzenet}</div>
+                        <button class="btn btn-secondary editButton" data-id="${doc.id}">Szerkesztés</button>
+                    </li>
+                `;
+                        messageList.innerHTML += messageItem;
+                    });
+                });
+            }
+
+            const editNameInput = document.getElementById('editName');
+            const editMessageInput = document.getElementById('editMessage');
+            let messageId;
+
+
+            document.addEventListener("click", function (event) {
+                if (event.target.classList.contains("editButton")) {
+                    messageId = event.target.getAttribute("data-id");
+                    const messageElement = event.target.parentElement;
+                    const currentName = messageElement.querySelector('div:nth-child(1)').textContent.trim().split(': ')[1];
+                    const currentMessage = messageElement.querySelector('div:nth-child(2)').textContent.trim().split(': ')[1];
+
+
+                    const editNameInput = document.getElementById('editName');
+                    const editMessageInput = document.getElementById('editMessage');
+
+                    editNameInput.value = currentName;
+                    editMessageInput.value = currentMessage;
+
+
+                    document.getElementById('saveEdit').removeEventListener('click', saveEditHandler);
+
+
+                    document.getElementById('saveEdit').addEventListener('click', saveEditHandler);
+
+                    $('#editModal').modal('show');
+                }
+            });
+
+            function filterMessagesByName(name) {
+                let query = db.collection("vendegkonyv");
+
+                if (name.trim() !== "") {
+                    query = query.where("nev", "==", name);
+                }
+
+                query.get()
+                    .then((querySnapshot) => {
+                        displayMessages(querySnapshot);
+                    })
+                    .catch((error) => {
+                        console.error("Hiba történt az üzenetek szűrésénél:", error);
+                    });
+            }
+
+            document.addEventListener("DOMContentLoaded", function () {
+                const szuresButton = document.getElementById("szuresButton");
+                szuresButton.addEventListener("click", function (event) {
+                    event.preventDefault();
+
+                    const name = document.getElementById("szures").value;
+
+                    filterMessagesByName(name);
+                });
+            });
+
+            function saveEditHandler() {
+                const newName = editNameInput.value;
+                const newMessage = editMessageInput.value;
+                const docRef = db.collection("vendegkonyv").doc(messageId);
+                docRef.update({
+                    nev: newName,
+                    uzenet: newMessage
+                }).then(() => {
+                    console.log("Üzenet frissítve!");
+                    updateMessageList();
+                }).catch(error => {
+                    console.error("Hiba történt az üzenet frissítése közben:", error);
+                });
+
+                $('#editModal').modal('hide');
+            }
+
+            document.addEventListener("DOMContentLoaded", function () {
+                updateMessageList();
+            });
+
+
+            function displayMessages(querySnapshot) {
+                const messageList = document.getElementById("messageList");
+                messageList.innerHTML = ""; // Üresre állítjuk a listát, hogy frissítsük
+
+                querySnapshot.forEach((doc) => {
+                    const messageData = doc.data();
+                    const messageItem = `
+                <li class="list-group-item">
+                    <div><strong>Név:</strong> ${messageData.nev}</div>
+                    <div><strong>Üzenet:</strong> ${messageData.uzenet}</div>
+                    <button class="btn btn-secondary editButton" data-id="${doc.id}">Szerkesztés</button>
+                </li>
+            `;
+                    messageList.innerHTML += messageItem;
+                });
+            }
+        </script>
+
+
+        </script>
+</body>
+
+</html>
